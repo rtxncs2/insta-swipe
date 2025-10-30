@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>v.p.x</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #000;
+      overflow: hidden; /* Prevent body scroll */
+    }
+    #video-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    #video-player {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* Full-screen video */
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="video-container" class="relative">
+    <video id="video-player" loop autoplay playsinline class="rounded-none"></video>
+
+    <div id="message-box"
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-6 bg-gray-900/80 text-white text-xl font-bold rounded-xl shadow-2xl transition-opacity duration-500 opacity-0 pointer-events-none text-center border-2 border-white/50">
+    </div>
+
+    <div id="index-indicator"
+      class="absolute bottom-6 right-6 p-2 bg-gray-900/50 text-white text-sm font-medium rounded-full">
+      Video 1/4
+    </div>
+  </div>
+
+  <script>
+    // --- Configuration ---
+    const videoSources = [
+      "https://files.catbox.moe/n2igj1.mp4",
+      "https://files.catbox.moe/kum8fl.mp4",
+      "https://files.catbox.moe/ybunxh.mp4",
+      "https://files.catbox.moe/2vdgq0.mp4",
+      "https://files.catbox.moe/0q0095.mp4"
+    ];
+
+    const SWIPE_THRESHOLD = 50; // Minimum swipe distance
+
+    // --- State and DOM Elements ---
+    let currentVideoIndex = 0;
+    let startY = 0;
+    let endY = 0;
+    let firstInteraction = true;
+
+    const videoElement = document.getElementById('video-player');
+    const messageBox = document.getElementById('message-box');
+    const indexIndicator = document.getElementById('index-indicator');
+    const videoContainer = document.getElementById('video-container');
+
+    // --- Message Control ---
+    function showInitialMessage() {
+      const instructions = `
+        <div class="space-y-3">
+          <p class="text-3xl font-extrabold text-indigo-400">TAP/CLICK to Play/Pause</p>
+          <p class="text-lg font-medium">SWIPE or SCROLL Up/Down for Next/Previous</p>
+        </div>
+      `;
+      messageBox.innerHTML = instructions;
+      messageBox.classList.add('opacity-100');
+      messageBox.classList.remove('opacity-0');
+      window.messageTimeout = setTimeout(hideMessage, 10000);
+    }
+
+    function hideMessage() {
+      messageBox.classList.add('opacity-0');
+      messageBox.classList.remove('opacity-100');
+      clearTimeout(window.messageTimeout);
+    }
+
+    function handleFirstInteraction() {
+      if (firstInteraction) {
+        hideMessage();
+        firstInteraction = false;
+      }
+    }
+
+    // --- Core Functions ---
+    function loadVideo(index) {
+      if (index < 0) index = videoSources.length - 1;
+      if (index >= videoSources.length) index = 0;
+
+      currentVideoIndex = index;
+      videoElement.src = videoSources[currentVideoIndex];
+      videoElement.volume = 1.0;
+      videoElement.muted = false;
+      indexIndicator.textContent = `Video ${currentVideoIndex + 1}/${videoSources.length}`;
+      videoElement.load();
+      videoElement.play().catch(err => console.warn("Autoplay prevented:", err));
+    }
+
+    // --- Event Listeners ---
+    // Touch swipe (mobile)
+    videoContainer.addEventListener('touchstart', e => {
+      startY = e.touches[0].clientY;
+      endY = startY;
+    });
+
+    videoContainer.addEventListener('touchmove', e => {
+      endY = e.touches[0].clientY;
+    });
+
+    videoContainer.addEventListener('touchend', () => {
+      handleFirstInteraction();
+      const deltaY = endY - startY;
+      if (Math.abs(deltaY) > SWIPE_THRESHOLD) {
+        if (deltaY < 0) loadVideo(currentVideoIndex + 1);
+        else loadVideo(currentVideoIndex - 1);
+      }
+    });
+
+    // Click / Tap for play-pause
+    videoContainer.addEventListener('click', () => {
+      handleFirstInteraction();
+      if (videoElement.paused) {
+        videoElement.muted = false;
+        videoElement.play().catch(e => console.error("Play error:", e));
+      } else {
+        videoElement.pause();
+      }
+    });
+
+    // Mouse scroll (desktop)
+    videoContainer.addEventListener('wheel', e => {
+      e.preventDefault();
+      handleFirstInteraction();
+      if (Math.abs(e.deltaY) > 5) {
+        if (e.deltaY > 0) loadVideo(currentVideoIndex + 1);
+        else loadVideo(currentVideoIndex - 1);
+      }
+    }, { passive: false });
+
+    // --- Initialization ---
+    window.onload = function() {
+      loadVideo(0);
+      showInitialMessage();
+    };
+  </script>
+
+</body>
+</html>
